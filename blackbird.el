@@ -4,7 +4,7 @@
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
 ;; Version: 2.0
-;; Package-Requires ((request "20160108.33") (enlive "0.0.1"))
+;; Package-Requires ((request "0.2.0") (enlive "0.0.1"))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/blackbird.el
 
