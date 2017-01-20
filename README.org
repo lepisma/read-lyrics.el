@@ -1,0 +1,23 @@
+#+TITLE: read-lyrics.el
+#+AUTHOR: Abhinav Tushar
+
+Lyrics reader for Emacs. Checks following players for /now-playing/ in the given
+priority order.
+
+1. [[https://www.spotify.com/][Spotify]]
+2. [[https://www.musicpd.org/][MPD]] (needs ~mpc~ executable to be on path)
+3. [[https://github.com/lepisma/blackbird][blackbird]]
+
+For adding your own /now-playing/ source, use
+
+#+BEGIN_SRC emacs-lisp
+(defun my-now-playing ()
+  "Return a list containing two strings,
+1. artist
+2. title
+or nil if no song is getting played"
+  '("foo-artist" "bar-title"))
+
+;; Add to highest priority (or fiddle around with read-lyrics-getters list)
+(add-to-list 'read-lyrics-getters 'my-now-playing)
+#+END_SRC

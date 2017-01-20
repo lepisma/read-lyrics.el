@@ -154,10 +154,9 @@ Not Implemented."
   :group 'read-lyrics)
 
 (defcustom read-lyrics-getters
-  (list
-   'read-lyrics-get-spotify
-   'read-lyrics-get-mpd
-   'read-lyrics-get-blackbird)
+  '(read-lyrics-get-spotify
+    read-lyrics-get-mpd
+    read-lyrics-get-blackbird)
   "Current song getters in decreasing priority.
 Should return a list or two items, artist and title."
   :group 'read-lyrics)
