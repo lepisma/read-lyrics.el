@@ -61,26 +61,28 @@
   "Display lyrics from the page url"
   (let ((page-node (enlive-fetch lyrics-page-url)))
     (if page-node
-        (let ((page-data (read-lyrics-get-page-data page-node))
+        (let ((artist (read-lyrics-get-page-artist page-node))
+              (title (read-lyrics-get-page-title page-node))
+              (lyrics (read-lyrics-get-page-lyrics page-node))
               (buffer (get-buffer-create read-lyrics-buffer-name)))
           (set-buffer buffer)
           (setq buffer-read-only nil)
           (erase-buffer)
           (read-lyrics-mode)
           (insert "\n")
-          (insert (propertize (second page-data)
+          (insert (propertize title
                               'face '(:inherit variable-pitch
                                                :foreground "DeepSkyBlue"
                                                :height 1.6)))
           (insert "\n")
-          (insert (propertize (first page-data)
+          (insert (propertize artist
                               'face '(:inherit variable-pitch
                                                :height 1.0
                                                :weight bold
                                                :foreground "gray")))
           (insert "\n\n")
           (setq text-start (point))
-          (insert (propertize (third page-data)
+          (insert (propertize lyrics
                               'face '(:inherit variable-pitch
                                                :height 1.1
                                                :slant italic
@@ -92,18 +94,18 @@
           (goto-char (point-min)))
       (message "Error in fetching page"))))
 
-(defun read-lyrics-get-artist (page-node)
+(defun read-lyrics-get-page-artist (page-node)
   "Get artist name from the page."
   (let ((bold-headings (enlive-get-elements-by-tag-name page-node 'b)))
     (s-chop-suffix " Lyrics" (enlive-text (car bold-headings)))))
 
-(defun read-lyrics-get-title (page-node)
+(defun read-lyrics-get-page-title (page-node)
   "Get song name from the page."
   (let ((bold-headings (enlive-get-elements-by-tag-name page-node 'b)))
     (substring (enlive-text (second bold-headings)) 1 -1)))
 
-(defun read-lyrics-get-page-data (page-node)
-  "Return information from lyrics page"
+(defun read-lyrics-get-page-lyrics (page-node)
+  "Get lyrics from the page."
   (let* ((text (enlive-text
                 (nth 4 (enlive-query-all
                         page-node
@@ -112,10 +114,8 @@
          (notice-index (+ (string-match notice-text-end text)
                           (length notice-text-end))))
     (if notice-index
-        (setq text (string-trim (substring text notice-index))))
-    (list (read-lyrics-get-artist page-node)
-          (read-lyrics-get-title page-node)
-          text)))
+        (string-trim (substring text notice-index))
+      text)))
 
 ;; Now playing getters
 
