@@ -4,7 +4,7 @@
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
 ;; Version: 2.1
-;; Package-Requires ((request "0.2.0") (enlive "0.0.1") (s "1.11.0) (spotify "0.3.3"))
+;; Package-Requires ((enlive "0.0.1") (s "1.11.0) (spotify "0.3.3"))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/read-lyrics.el
 
@@ -16,12 +16,11 @@
 ;;; Code:
 
 (require 'enlive)
-(require 'request)
 (require 's)
 (require 'spotify)
 
 
-(defconst read-lyrics-search-url "https://duckduckgo.com/html/?q=site%3Aazlyrics.com+")
+(defconst read-lyrics-search-url "http://search.azlyrics.com/search.php?q=")
 
 (defvar read-lyrics-buffer-name "*Lyrics*"
   "Lyrics buffer name")
@@ -47,26 +46,16 @@
 
 (defun read-lyrics-parse-search (search-node)
   "Get link to first lyrics result from given node"
-  (let ((result-urls (enlive-get-elements-by-class-name
-                     search-node
-                     "result__url")))
+  (let ((result-urls (enlive-query-all search-node [tr a])))
     (if result-urls
-        (read-lyrics-get-first-result result-urls)
+        (enlive-attr (car result-urls) 'href)
       nil)))
 
 (defun read-lyrics-build-search-url (title artist)
-  "Return duckduckgo search url"
+  "Return search url"
   (s-concat
    read-lyrics-search-url
    (s-replace " " "+" (concat artist " " title))))
-
-(defun read-lyrics-get-first-result (result-urls)
-  "Return first url from the search results"
-  (if result-urls
-      (let ((parsed (url-parse-query-string
-                     (enlive-attr (car result-urls) 'href))))
-        (second (assoc "uddg" parsed)))
-    nil))
 
 (defun read-lyrics-display-page (lyrics-page-url)
   "Display lyrics from the page url"
@@ -84,14 +73,14 @@
                                                :foreground "DeepSkyBlue"
                                                :height 1.6)))
           (insert "\n")
-          (insert (propertize (third page-data)
+          (insert (propertize (first page-data)
                               'face '(:inherit variable-pitch
                                                :height 1.0
                                                :weight bold
                                                :foreground "gray")))
           (insert "\n\n")
           (setq text-start (point))
-          (insert (propertize (first page-data)
+          (insert (propertize (third page-data)
                               'face '(:inherit variable-pitch
                                                :height 1.1
                                                :slant italic
@@ -103,26 +92,30 @@
           (goto-char (point-min)))
       (message "Error in fetching page"))))
 
+(defun read-lyrics-get-artist (page-node)
+  "Get artist name from the page."
+  (let ((bold-headings (enlive-get-elements-by-tag-name page-node 'b)))
+    (s-chop-suffix " Lyrics" (enlive-text (car bold-headings)))))
+
+(defun read-lyrics-get-title (page-node)
+  "Get song name from the page."
+  (let ((bold-headings (enlive-get-elements-by-tag-name page-node 'b)))
+    (substring (enlive-text (second bold-headings)) 1 -1)))
+
 (defun read-lyrics-get-page-data (page-node)
   "Return information from lyrics page"
-  (let ((data nil)
-        (bold-headings (enlive-get-elements-by-tag-name page-node 'b)))
-    (push (s-chop-suffix " LYRICS" (enlive-text (first bold-headings)))
-          data)
-    (push (substring
-           (enlive-text (second bold-headings)) 1 -1)
-          data)
-    (let* ((text (enlive-text
-                  (sixth (enlive-query-all
-                          page-node
-                          [div.container.main-page > div > div.col-xs-12.col-lg-8.text-center > div]))))
-           (notice-text-end "licensing agreement. Sorry about that.")
-           (notice-index (+ (string-match notice-text-end text)
-                            (length notice-text-end))))
-      (if notice-index
-          (setq text (string-trim (substring text notice-index))))
-      (push text data))
-    data))
+  (let* ((text (enlive-text
+                (nth 4 (enlive-query-all
+                        page-node
+                        [div.container.main-page div.col-xs-12.col-lg-8 > div]))))
+         (notice-text-end "licensing agreement. Sorry about that.")
+         (notice-index (+ (string-match notice-text-end text)
+                          (length notice-text-end))))
+    (if notice-index
+        (setq text (string-trim (substring text notice-index))))
+    (list (read-lyrics-get-artist page-node)
+          (read-lyrics-get-title page-node)
+          text)))
 
 ;; Now playing getters
 
