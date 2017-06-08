@@ -25,13 +25,6 @@
 (defvar read-lyrics-buffer-name "*Lyrics*"
   "Lyrics buffer name")
 
-(defun read-lyrics-mode ()
-  "Major mode for displaying lyrics."
-  (kill-all-local-variables)
-  (setq major-mode 'read-lyrics-mode)
-  (setq mode-name read-lyrics-buffer-name)
-  (run-hooks 'read-lyrics-mode-hook))
-
 (defun read-lyrics-for (title artist)
   "Show lyrics for given song"
   (let* ((search-url (read-lyrics-build-search-url title artist))
@@ -170,6 +163,21 @@ Should return a list or two items, artist and title."
   "Get current playing track information"
   (interactive)
   (read-lyrics-use-first-getter read-lyrics-getters))
+
+(defun read-lyrics-kill-buffer ()
+  "Close lyrics buffer"
+  (interactive)
+  (kill-this-buffer))
+
+(defvar read-lyrics-mode-map
+  (let ((map (make-keymap)))
+    (define-key map (kbd "r") 'read-lyrics)
+    (define-key map (kbd "q") 'read-lyrics-kill-buffer)
+    map)
+  "Keymap for read lyrics.")
+
+(define-derived-mode read-lyrics-mode nil "Read Lyrics"
+  "Major mode for lyrics")
 
 (provide 'read-lyrics)
 
