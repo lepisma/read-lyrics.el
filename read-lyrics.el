@@ -3,7 +3,7 @@
 ;; Copyright (c) 2017 Abhinav Tushar
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
-;; Version: 2.1
+;; Version: 2.2.0
 ;; Package-Requires ((enlive "0.0.1") (s "1.11.0) (spotify "0.3.3"))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/read-lyrics.el
