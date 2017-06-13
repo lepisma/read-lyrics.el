@@ -18,7 +18,7 @@
 (require 'enlive)
 (require 's)
 (require 'spotify)
-
+(require 'url-util)
 
 (defconst read-lyrics-search-url "http://search.azlyrics.com/search.php?q=")
 
@@ -48,7 +48,7 @@
   "Return search url"
   (s-concat
    read-lyrics-search-url
-   (s-replace " " "+" (concat artist " " title))))
+   (url-hexify-string (concat artist " " title))))
 
 (defun read-lyrics-display-page (lyrics-page-url)
   "Display lyrics from the page url"
