@@ -4,7 +4,7 @@
 Lyrics reader for Emacs. Checks following players for /now-playing/ in the given
 priority order.
 
-1. [[https://github.com/leipsma/mpm-play][mpm-play]]~ (via [[https://github.com/leipsma/bbq][bbq]])
+1. [[https://github.com/leipsma/mpm-play][mpm-play]] (via [[https://github.com/leipsma/bbq][bbq]])
 2. [[https://www.spotify.com/][Spotify]]
 3. [[https://www.musicpd.org/][MPD]] (needs ~mpc~ executable to be on path)
 
