@@ -3,7 +3,7 @@
 ;; Copyright (c) 2017 Abhinav Tushar
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
-;; Version: 3.0.0
+;; Version: 3.1.0
 ;; Package-Requires ((enlive "0.0.1") (dash "2.13.0") (f "0.19.0") (s "1.11.0) (spotify "0.3.3"))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/read-lyrics.el
@@ -120,7 +120,7 @@
   "Return artist, track pair from bbq."
   (let ((splits (mapcar (lambda (split) (s-trim (s-collapse-whitespace split)))
                         (s-split "-" (shell-command-to-string "bbq :current")))))
-    (list (car (last splits))
+    (cons (car (last splits))
           (s-join " " (butlast splits)))))
 
 (defun read-lyrics-get-spotify ()
@@ -128,7 +128,7 @@
   (let ((sp-out (spotify-current)))
     (if sp-out
         (let ((splits (s-split " / " sp-out)))
-          (list
+          (cons
            (first splits)
            (second (s-split-up-to ": " (third splits) 1 t))))
       nil)))
@@ -138,7 +138,8 @@
   (let ((mpc-out (s-lines (shell-command-to-string "mpc"))))
     (if (< (length mpc-out) 3)
         nil
-      (s-split " - " (first mpc-out)))))
+      (let ((splits (s-split " - " (first mpc-out))))
+        (cons (car splits) (second splits))))))
 
 ;; Variables
 (defgroup read-lyrics nil
@@ -158,8 +159,8 @@ Should return a list or two items, artist and title."
   (if getters
       (let ((current (funcall (first getters))))
         (if current
-            (let ((artist (first current))
-                  (title (second current)))
+            (let ((artist (car current))
+                  (title (cdr current)))
               (read-lyrics-for title artist))
           (read-lyrics-use-first-getter (cdr getters))))
     (message "No song being played")))

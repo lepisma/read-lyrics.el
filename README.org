@@ -4,20 +4,18 @@
 Lyrics reader for Emacs. Checks following players for /now-playing/ in the given
 priority order.
 
-1. [[https://www.spotify.com/][Spotify]]
-2. [[https://www.musicpd.org/][MPD]] (needs ~mpc~ executable to be on path)
-3. [[https://github.com/lepisma/blackbird][blackbird]]
+1. [[https://github.com/leipsma/mpm-play][mpm-play]]~ (via [[https://github.com/leipsma/bbq][bbq]])
+2. [[https://www.spotify.com/][Spotify]]
+3. [[https://www.musicpd.org/][MPD]] (needs ~mpc~ executable to be on path)
 
 For adding your own /now-playing/ source, use
 
 #+BEGIN_SRC emacs-lisp
 (defun my-now-playing ()
-  "Return a list containing two strings,
-1. artist
-2. title
+  "Return a cons cell containing artist and title,
 or nil if no song is getting played"
-  '("foo-artist" "bar-title"))
+  '("foo-artist" . "bar-title"))
 
 ;; Add to highest priority (or fiddle around with read-lyrics-getters list)
-(add-to-list 'read-lyrics-getters 'my-now-playing)
+(add-to-list 'read-lyrics-getters #'my-now-playing)
 #+END_SRC
