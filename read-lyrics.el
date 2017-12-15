@@ -3,8 +3,8 @@
 ;; Copyright (c) 2017 Abhinav Tushar
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
-;; Version: 2.2.0
-;; Package-Requires ((enlive "0.0.1") (s "1.11.0) (spotify "0.3.3"))
+;; Version: 3.0.0
+;; Package-Requires ((enlive "0.0.1") (dash "2.13.0") (f "0.19.0") (s "1.11.0) (spotify "0.3.3"))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/read-lyrics.el
 
@@ -15,27 +15,42 @@
 
 ;;; Code:
 
+(require 'dash)
 (require 'enlive)
+(require 'f)
+(require 'org)
 (require 's)
 (require 'spotify)
 (require 'url-util)
 
 (defconst read-lyrics-search-url "http://search.azlyrics.com/search.php?q=")
 
-(defvar read-lyrics-buffer-name "*Lyrics*"
-  "Lyrics buffer name")
+(defcustom read-lyrics-cache-dir (f-full "~/.lyrics/")
+  "Cache directory for keeping lyrics")
+
+(defun read-lyrics-cache-file (title artist)
+  "Return file name for the cache"
+  (--> (s-concat artist "--" title)
+     (downcase it)
+     (s-collapse-whitespace it)
+     (s-trim it)
+     (s-replace-all '((" " . "-")) it)
+     (f-join read-lyrics-cache-dir (s-concat it ".lyr"))))
 
 (defun read-lyrics-for (title artist)
   "Show lyrics for given song"
-  (let* ((search-url (read-lyrics-build-search-url title artist))
-         (search-node (enlive-fetch search-url)))
-      (if search-node
-          (let ((lyrics-page-url (read-lyrics-parse-search
-                                  search-node)))
-            (if lyrics-page-url
-                (read-lyrics-display-page lyrics-page-url)
-              (message "No lyrics results found")))
-        (message "Error in search"))))
+  (let ((cache-file (read-lyrics-cache-file title artist)))
+    (if (f-exists? cache-file)
+        (find-file cache-file)
+      (let* ((search-url (read-lyrics-build-search-url title artist))
+             (search-node (enlive-fetch search-url)))
+        (if search-node
+            (let ((lyrics-page-url (read-lyrics-parse-search
+                                    search-node)))
+              (if lyrics-page-url
+                  (read-lyrics-display-page lyrics-page-url cache-file)
+                (message "No lyrics results found")))
+          (message "Error in search"))))))
 
 (defun read-lyrics-parse-search (search-node)
   "Get link to first lyrics result from given node"
@@ -50,41 +65,30 @@
    read-lyrics-search-url
    (url-hexify-string (concat artist " " title))))
 
-(defun read-lyrics-display-page (lyrics-page-url)
-  "Display lyrics from the page url"
+(defun read-lyrics-display-page (lyrics-page-url cache-file)
+  "Display lyrics from the page url. Also save it to cache-file."
+  (f-mkdir read-lyrics-cache-dir)
   (let ((page-node (enlive-fetch lyrics-page-url)))
     (if page-node
         (let ((artist (read-lyrics-get-page-artist page-node))
               (title (read-lyrics-get-page-title page-node))
               (lyrics (read-lyrics-get-page-lyrics page-node))
-              (buffer (get-buffer-create read-lyrics-buffer-name)))
+              (buffer (find-file-noselect cache-file)))
           (set-buffer buffer)
           (setq buffer-read-only nil)
           (erase-buffer)
           (read-lyrics-mode)
+          (insert (s-concat "* " title "\n"))
+          (org-set-property "ARTIST" artist)
+          (org-set-property "URL" lyrics-page-url)
           (insert "\n")
-          (insert (propertize title
-                              'face '(:inherit variable-pitch
-                                               :foreground "DeepSkyBlue"
-                                               :height 1.6)))
-          (insert "\n")
-          (insert (propertize artist
-                              'face '(:inherit variable-pitch
-                                               :height 1.0
-                                               :weight bold
-                                               :foreground "gray")))
-          (insert "\n\n")
-          (setq text-start (point))
-          (insert (propertize lyrics
-                              'face '(:inherit variable-pitch
-                                               :height 1.1
-                                               :slant italic
-                                               :foreground "DeepPink1")))
-          (switch-to-buffer buffer)
-          (add-text-properties text-start (point-max) '(line-spacing 0.4))
-          (delete-trailing-whitespace)
+          (insert "#+BEGIN_QUOTE\n")
+          (insert (s-concat (s-trim lyrics) "\n"))
+          (insert "#+END_QUOTE\n")
           (setq buffer-read-only t)
-          (goto-char (point-min)))
+          (goto-char (point-min))
+          (save-buffer)
+          (switch-to-buffer buffer))
       (message "Error in fetching page"))))
 
 (defun read-lyrics-get-page-artist (page-node)
@@ -112,6 +116,13 @@
 
 ;; Now playing getters
 
+(defun read-lyrics-get-bbq ()
+  "Return artist, track pair from bbq."
+  (let ((splits (mapcar (lambda (split) (s-trim (s-collapse-whitespace split)))
+                        (s-split "-" (shell-command-to-string "bbq :current")))))
+    (list (car (last splits))
+          (s-join " " (butlast splits)))))
+
 (defun read-lyrics-get-spotify ()
   "Return artist, track pair or nil from spotify."
   (let ((sp-out (spotify-current)))
@@ -129,20 +140,15 @@
         nil
       (s-split " - " (first mpc-out)))))
 
-(defun read-lyrics-get-blackbird ()
-  "Return artist, track pair or nil from blackbird.
-Not Implemented."
-  nil)
-
 ;; Variables
 (defgroup read-lyrics nil
   "Read lyrics customization group"
   :group 'read-lyrics)
 
 (defcustom read-lyrics-getters
-  '(read-lyrics-get-spotify
-    read-lyrics-get-mpd
-    read-lyrics-get-blackbird)
+  '(read-lyrics-get-bbq
+    read-lyrics-get-spotify
+    read-lyrics-get-mpd)
   "Current song getters in decreasing priority.
 Should return a list or two items, artist and title."
   :group 'read-lyrics)
@@ -167,17 +173,21 @@ Should return a list or two items, artist and title."
 (defun read-lyrics-kill-buffer ()
   "Close lyrics buffer"
   (interactive)
-  (kill-this-buffer))
+  (kill-buffer (current-buffer)))
 
 (defvar read-lyrics-mode-map
   (let ((map (make-keymap)))
-    (define-key map (kbd "r") 'read-lyrics)
-    (define-key map (kbd "q") 'read-lyrics-kill-buffer)
+    (define-key map (kbd "r") #'read-lyrics)
+    (define-key map (kbd "q") #'read-lyrics-kill-buffer)
     map)
   "Keymap for read lyrics.")
 
-(define-derived-mode read-lyrics-mode nil "Read Lyrics"
+(define-derived-mode read-lyrics-mode org-mode
+  "Read Lyrics"
   "Major mode for lyrics")
+
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.lyr\\'" . read-lyrics-mode))
 
 (provide 'read-lyrics)
 
