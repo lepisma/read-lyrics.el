@@ -4,7 +4,7 @@
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
 ;; Version: 3.1.1
-;; Package-Requires ((enlive "0.0.1") (dash "2.13.0") (f "0.19.0") (s "1.11.0) (spotify "0.3.3"))
+;; Package-Requires ((enlive "0.0.1") (dash "2.13.0") (dash-functional "2.13.0") (f "0.19.0") (s "1.11.0) (spotify "0.3.3"))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/read-lyrics.el
 
@@ -16,6 +16,7 @@
 ;;; Code:
 
 (require 'dash)
+(require 'dash-functional)
 (require 'enlive)
 (require 'f)
 (require 'org)
@@ -54,10 +55,10 @@
 
 (defun read-lyrics-parse-search (search-node)
   "Get link to first lyrics result from given node"
-  (let ((result-urls (enlive-query-all search-node [tr a])))
-    (if result-urls
-        (enlive-attr (car result-urls) 'href)
-      nil)))
+  (let ((result-urls (->> (enlive-query-all search-node [tr a])
+                        (-map (-cut enlive-attr <> 'href))
+                        (-filter (-not (-cut s-starts-with? "?q" <>))))))
+    (car result-urls)))
 
 (defun read-lyrics-build-search-url (title artist)
   "Return search url"
