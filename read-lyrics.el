@@ -111,7 +111,7 @@
          (notice-index (+ (string-match notice-text-end text)
                           (length notice-text-end))))
     (if notice-index
-        (string-trim (substring text notice-index))
+        (s-replace-all '(("" . "")) (string-trim (substring text notice-index)))
       text)))
 
 ;; Now playing getters
