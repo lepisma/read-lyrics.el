@@ -75,9 +75,9 @@
               (lyrics (read-lyrics-get-page-lyrics page-node))
               (buffer (find-file-noselect cache-file)))
           (set-buffer buffer)
+          (read-lyrics-mode)
           (setq buffer-read-only nil)
           (erase-buffer)
-          (read-lyrics-mode)
           (insert (s-concat "* " title "\n"))
           (org-set-property "ARTIST" artist)
           (org-set-property "URL" lyrics-page-url)
@@ -185,7 +185,8 @@ Should return a list or two items, artist and title."
 
 (define-derived-mode read-lyrics-mode org-mode
   "Read Lyrics"
-  "Major mode for lyrics")
+  "Major mode for lyrics"
+  (setq buffer-read-only t))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.lyr\\'" . read-lyrics-mode))
