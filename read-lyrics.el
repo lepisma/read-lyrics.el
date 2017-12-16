@@ -26,7 +26,7 @@
 
 (defconst read-lyrics-search-url "http://search.azlyrics.com/search.php?q=")
 
-(defcustom read-lyrics-cache-dir (f-full "~/.lyrics/")
+(defcustom read-lyrics-cache-dir (f-full "~/.cache/read-lyrics.el/")
   "Cache directory for keeping lyrics")
 
 (defun read-lyrics-cache-file (title artist)
