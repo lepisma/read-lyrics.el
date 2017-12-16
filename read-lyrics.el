@@ -110,9 +110,9 @@
          (notice-text-end "licensing agreement. Sorry about that.")
          (notice-index (+ (string-match notice-text-end text)
                           (length notice-text-end))))
-    (if notice-index
-        (s-replace-all '(("" . "")) (string-trim (substring text notice-index)))
-      text)))
+    (s-replace-all '(("" . "")) (if notice-index
+                                      (string-trim (substring text notice-index))
+                                    text))))
 
 ;; Now playing getters
 
