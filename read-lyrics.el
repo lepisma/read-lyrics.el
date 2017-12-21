@@ -38,6 +38,11 @@
      (s-replace-all '((" " . "-")) it)
      (f-join read-lyrics-cache-dir (s-concat it ".lyr"))))
 
+(defun read-lyrics-browser-fallback (title artist)
+  "Open a fallback search page in browser"
+  (let ((encoded-string (url-hexify-string (format "%s %s lyrics" title artist))))
+    (browse-url (format "https://duckduckgo.com/?q=%s" encoded-string))))
+
 (defun read-lyrics-for (title artist)
   "Show lyrics for given song"
   (let ((cache-file (read-lyrics-cache-file title artist)))
@@ -50,7 +55,9 @@
                                     search-node)))
               (if lyrics-page-url
                   (read-lyrics-display-page lyrics-page-url cache-file)
-                (message "No lyrics results found")))
+                (progn
+                  (message "No lyrics found. Opening browser.")
+                  (read-lyrics-browser-fallback title artist))))
           (message "Error in search"))))))
 
 (defun read-lyrics-parse-search (search-node)
@@ -62,9 +69,7 @@
 
 (defun read-lyrics-build-search-url (title artist)
   "Return search url"
-  (s-concat
-   read-lyrics-search-url
-   (url-hexify-string (concat artist " " title))))
+  (s-concat read-lyrics-search-url (url-hexify-string (s-concat artist " " title))))
 
 (defun read-lyrics-display-page (lyrics-page-url cache-file)
   "Display lyrics from the page url. Also save it to cache-file."
