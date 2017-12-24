@@ -4,7 +4,7 @@
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
 ;; Version: 3.1.3
-;; Package-Requires ((enlive "0.0.1") (dash "2.13.0") (dash-functional "2.13.0") (f "0.19.0") (s "1.11.0) (spotify "0.3.3"))
+;; Package-Requires ((levenshtein) (enlive "0.0.1") (dash "2.13.0") (dash-functional "2.13.0") (f "0.19.0") (s "1.11.0) (spotify "0.3.3"))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/read-lyrics.el
 
@@ -19,6 +19,7 @@
 (require 'dash-functional)
 (require 'enlive)
 (require 'f)
+(require 'levenshtein)
 (require 'org)
 (require 's)
 (require 'spotify)
@@ -38,6 +39,11 @@
      (s-replace-all '((" " . "-")) it)
      (f-join read-lyrics-cache-dir (s-concat it ".lyr"))))
 
+(defun read-lyrics-text-match? (original to-test)
+  "Test if TO-TEST is sufficiently close to ORIGINAL."
+  (let ((thresh 0.3))
+    (> thresh (/ (levenshtein-distance original to-test) (* 1.0 (length original))))))
+
 (defun read-lyrics-browser-fallback (title artist)
   "Open a fallback search page in browser"
   (let ((encoded-string (url-hexify-string (format "%s %s lyrics" title artist))))
@@ -51,10 +57,20 @@
       (let* ((search-url (read-lyrics-build-search-url title artist))
              (search-node (enlive-fetch search-url)))
         (if search-node
-            (let ((lyrics-page-url (read-lyrics-parse-search
-                                    search-node)))
+            (let ((lyrics-page-url (read-lyrics-parse-search search-node)))
               (if lyrics-page-url
-                  (read-lyrics-display-page lyrics-page-url cache-file)
+                  (let ((lyrics-page-node (enlive-fetch lyrics-page-url)))
+                    (if lyrics-page-node
+                        (let ((page-artist (read-lyrics-get-page-artist lyrics-page-node))
+                              (page-title (read-lyrics-get-page-title lyrics-page-node))
+                              (page-lyrics (read-lyrics-get-page-lyrics lyrics-page-node)))
+                          (if (and (read-lyrics-text-match? title page-title)
+                                   (read-lyrics-text-match? artist page-artist))
+                              (read-lyrics-display-lyrics page-title page-artist page-lyrics cache-file)
+                            (progn
+                              (message "No lyrics found. Opening browser.")
+                              (read-lyrics-browser-fallback title artist))))
+                      (message "Error in fetching page")))
                 (progn
                   (message "No lyrics found. Opening browser.")
                   (read-lyrics-browser-fallback title artist))))
@@ -71,31 +87,24 @@
   "Return search url"
   (s-concat read-lyrics-search-url (url-hexify-string (s-concat artist " " title))))
 
-(defun read-lyrics-display-page (lyrics-page-url cache-file)
-  "Display lyrics from the page url. Also save it to cache-file."
+(defun read-lyrics-display-lyrics (title artist lyrics cache-file)
+  "Display lyrics for data. Also save it to cache-file."
   (f-mkdir read-lyrics-cache-dir)
-  (let ((page-node (enlive-fetch lyrics-page-url)))
-    (if page-node
-        (let ((artist (read-lyrics-get-page-artist page-node))
-              (title (read-lyrics-get-page-title page-node))
-              (lyrics (read-lyrics-get-page-lyrics page-node))
-              (buffer (find-file-noselect cache-file)))
-          (set-buffer buffer)
-          (read-lyrics-mode)
-          (setq buffer-read-only nil)
-          (erase-buffer)
-          (insert (s-concat "* " title "\n"))
-          (org-set-property "ARTIST" artist)
-          (org-set-property "URL" lyrics-page-url)
-          (insert "\n")
-          (insert "#+BEGIN_QUOTE\n")
-          (insert (s-concat (s-trim lyrics) "\n"))
-          (insert "#+END_QUOTE\n")
-          (setq buffer-read-only t)
-          (goto-char (point-min))
-          (save-buffer)
-          (switch-to-buffer buffer))
-      (message "Error in fetching page"))))
+  (let ((buffer (find-file-noselect cache-file)))
+    (set-buffer buffer)
+    (read-lyrics-mode)
+    (setq buffer-read-only nil)
+    (erase-buffer)
+    (insert (s-concat "* " title "\n"))
+    (org-set-property "ARTIST" artist)
+    (insert "\n")
+    (insert "#+BEGIN_QUOTE\n")
+    (insert (s-concat (s-trim lyrics) "\n"))
+    (insert "#+END_QUOTE\n")
+    (setq buffer-read-only t)
+    (goto-char (point-min))
+    (save-buffer)
+    (switch-to-buffer buffer)))
 
 (defun read-lyrics-get-page-artist (page-node)
   "Get artist name from the page."
