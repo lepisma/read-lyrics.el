@@ -3,7 +3,7 @@
 ;; Copyright (c) 2017 Abhinav Tushar
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
-;; Version: 3.1.4
+;; Version: 3.1.5
 ;; Package-Requires ((levenshtein) (enlive "0.0.1") (dash "2.13.0") (dash-functional "2.13.0") (f "0.19.0") (s "1.11.0) (spotify "0.3.3"))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/read-lyrics.el
@@ -198,6 +198,7 @@ Should return a list or two items, artist and title."
     map)
   "Keymap for read lyrics.")
 
+;;;###autoload
 (define-derived-mode read-lyrics-mode org-mode
   "Read Lyrics"
   "Major mode for lyrics"
