@@ -19,6 +19,7 @@
 (require 'dash-functional)
 (require 'enlive)
 (require 'f)
+(require 'json)
 (require 'levenshtein)
 (require 'org)
 (require 's)
@@ -133,10 +134,13 @@
 
 (defun read-lyrics-get-bbq ()
   "Return artist, track pair from bbq."
-  (let ((splits (mapcar (lambda (split) (s-trim (s-collapse-whitespace split)))
-                        (s-split "-" (shell-command-to-string "bbq :current")))))
-    (cons (car (last splits))
-          (s-join " " (butlast splits)))))
+  (let ((res (->> (shell-command-to-string "bbq :state")
+                (json-read-from-string)
+                (assoc 'item)
+                (cdr))))
+    (unless (eq res "NA")
+      (cons (cdr (assoc 'artist res))
+            (cdr (assoc 'title res))))))
 
 (defun read-lyrics-get-spotify ()
   "Return artist, track pair or nil from spotify."
