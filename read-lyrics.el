@@ -138,9 +138,9 @@
                 (json-read-from-string)
                 (assoc 'item)
                 (cdr))))
-    (unless (eq res "NA")
-      (cons (cdr (assoc 'artist res))
-            (cdr (assoc 'title res))))))
+    (if (consp res)
+        (cons (cdr (assoc 'artist res))
+              (cdr (assoc 'title res))))))
 
 (defun read-lyrics-get-spotify ()
   "Return artist, track pair or nil from spotify."
