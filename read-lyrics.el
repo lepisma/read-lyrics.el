@@ -4,7 +4,7 @@
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
 ;; Version: 3.1.5
-;; Package-Requires ((levenshtein) (enlive "0.0.1") (dash "2.13.0") (dash-functional "2.13.0") (f "0.19.0") (s "1.11.0))
+;; Package-Requires ((levenshtein) (enlive "0.0.1") (dash "2.13.0") (dash-functional "2.13.0") (f "0.19.0") (s "1.11.0"))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/read-lyrics.el
 
@@ -25,12 +25,30 @@
 (require 's)
 (require 'url-util)
 
+(defgroup read-lyrics nil
+  "Read lyrics customization group"
+  :group 'read-lyrics)
+
 (defconst read-lyrics-search-url "http://search.azlyrics.com/search.php?q=")
 
 (defcustom read-lyrics-cache-dir (f-full "~/.cache/read-lyrics.el/")
-  "Cache directory for keeping lyrics")
+  "Cache directory for keeping lyrics"
+  :group 'read-lyrics)
 
-(defun read-lyrics-cache-file (title artist)
+(defcustom read-lyrics-getters (list #'read-lyrics-get-interactive)
+  "Current song getters in decreasing priority.
+Should return a list or two items, artist and title."
+  :group 'read-lyrics)
+
+(defun read-lyrics-get-interactive ()
+  "Interactive getter for title and artist. Use this as the
+  fallback."
+  (let ((artist (read-string "artist: "))
+        (title (read-string "title: ")))
+    (unless (string= title "")
+      (cons artist title))))
+
+(defun read-lyrics-cache-file (artist title)
   "Return file name for the cache"
   (--> (s-concat artist "--" title)
      (downcase it)
@@ -44,37 +62,10 @@
   (let ((thresh 0.3))
     (> thresh (/ (levenshtein-distance original to-test) (* 1.0 (length original))))))
 
-(defun read-lyrics-browser-fallback (title artist)
+(defun read-lyrics-browser-fallback (artist title)
   "Open a fallback search page in browser"
   (let ((encoded-string (url-hexify-string (format "%s %s lyrics" title artist))))
     (browse-url (format "https://duckduckgo.com/?q=%s" encoded-string))))
-
-(defun read-lyrics-for (title artist)
-  "Show lyrics for given song"
-  (let ((cache-file (read-lyrics-cache-file title artist)))
-    (if (f-exists? cache-file)
-        (find-file cache-file)
-      (let* ((search-url (read-lyrics-build-search-url title artist))
-             (search-node (enlive-fetch search-url)))
-        (if search-node
-            (let ((lyrics-page-url (read-lyrics-parse-search search-node)))
-              (if lyrics-page-url
-                  (let ((lyrics-page-node (enlive-fetch lyrics-page-url)))
-                    (if lyrics-page-node
-                        (let ((page-artist (read-lyrics-get-page-artist lyrics-page-node))
-                              (page-title (read-lyrics-get-page-title lyrics-page-node))
-                              (page-lyrics (read-lyrics-get-page-lyrics lyrics-page-node)))
-                          (if (and (read-lyrics-text-match? title page-title)
-                                   (read-lyrics-text-match? artist page-artist))
-                              (read-lyrics-display-lyrics page-title page-artist page-lyrics cache-file)
-                            (progn
-                              (message "No lyrics found. Opening browser.")
-                              (read-lyrics-browser-fallback title artist))))
-                      (message "Error in fetching page")))
-                (progn
-                  (message "No lyrics found. Opening browser.")
-                  (read-lyrics-browser-fallback title artist))))
-          (message "Error in search"))))))
 
 (defun read-lyrics-parse-search (search-node)
   "Get link to first lyrics result from given node"
@@ -83,11 +74,11 @@
                         (-filter (-not (-cut s-starts-with? "?q" <>))))))
     (car result-urls)))
 
-(defun read-lyrics-build-search-url (title artist)
+(defun read-lyrics-build-search-url (artist title)
   "Return search url"
   (s-concat read-lyrics-search-url (url-hexify-string (s-concat artist " " title))))
 
-(defun read-lyrics-display-lyrics (title artist lyrics cache-file)
+(defun read-lyrics-display-lyrics (artist title lyrics cache-file)
   "Display lyrics for data. Also save it to cache-file."
   (f-mkdir read-lyrics-cache-dir)
   (let ((buffer (find-file-noselect cache-file)))
@@ -129,55 +120,51 @@
                                       (string-trim (substring text notice-index))
                                     text))))
 
-;; Now playing getters
+(defun read-lyrics-get-now-playing (&optional getters)
+  "Return now-playing based on the list of getter functions."
+  (when getters
+    (-if-let (result (funcall (car getters)))
+        result
+      (read-lyrics-get-now-playing (cdr getters)))))
 
-(defun read-lyrics-get-bbq ()
-  "Return artist, track pair from bbq."
-  (let ((res (->> (shell-command-to-string "bbq :state")
-                (json-read-from-string)
-                (assoc 'item)
-                (cdr))))
-    (if (consp res)
-        (cons (cdr (assoc 'artist res))
-              (cdr (assoc 'title res))))))
-
-(defun read-lyrics-get-mpd ()
-  "Return artist, track pair or nil from mpd"
-  (let ((mpc-out (s-lines (shell-command-to-string "mpc"))))
-    (if (< (length mpc-out) 3)
-        nil
-      (let ((splits (s-split " - " (first mpc-out))))
-        (cons (car splits) (second splits))))))
-
-;; Variables
-(defgroup read-lyrics nil
-  "Read lyrics customization group"
-  :group 'read-lyrics)
-
-(defcustom read-lyrics-getters
-  '(read-lyrics-get-bbq
-    read-lyrics-get-spotify
-    read-lyrics-get-mpd)
-  "Current song getters in decreasing priority.
-Should return a list or two items, artist and title."
-  :group 'read-lyrics)
-
-(defun read-lyrics-use-first-getter (getters)
-  "Use first getter to show lyrics"
-  (if getters
-      (let ((current (funcall (first getters))))
-        (if current
-            (let ((artist (car current))
-                  (title (cdr current)))
-              (read-lyrics-for title artist))
-          (read-lyrics-use-first-getter (cdr getters))))
-    (message "No song being played")))
+(defun read-lyrics-for (artist title)
+  "Show lyrics for given song"
+  (let ((cache-file (read-lyrics-cache-file artist title)))
+    (if (f-exists? cache-file)
+        (find-file cache-file)
+      (let* ((search-url (read-lyrics-build-search-url artist title))
+             (search-node (enlive-fetch search-url)))
+        (if search-node
+            (let ((lyrics-page-url (read-lyrics-parse-search search-node)))
+              (if lyrics-page-url
+                  (let ((lyrics-page-node (enlive-fetch lyrics-page-url)))
+                    (if lyrics-page-node
+                        (let ((page-artist (read-lyrics-get-page-artist lyrics-page-node))
+                              (page-title (read-lyrics-get-page-title lyrics-page-node))
+                              (page-lyrics (read-lyrics-get-page-lyrics lyrics-page-node)))
+                          (if (and (read-lyrics-text-match? title page-title)
+                                   (read-lyrics-text-match? artist page-artist))
+                              (read-lyrics-display-lyrics page-artist page-title page-lyrics cache-file)
+                            (message "No lyrics found. Opening browser.")
+                            (read-lyrics-browser-fallback artist title)))
+                      (message "Error in fetching page")))
+                (message "No lyrics found. Opening browser.")
+                (read-lyrics-browser-fallback artist title)))
+          (message "Error in search"))))))
 
 ;;;###autoload
 (defun read-lyrics ()
   "Get current playing track information"
   (interactive)
-  (read-lyrics-use-first-getter read-lyrics-getters))
+  (-if-let (result (read-lyrics-get-now-playing read-lyrics-getters))
+      (read-lyrics-for (car result) (cdr result))
+    (message "No track detected.")))
+
+;;;###autoload
+(defun read-lyrics-interactive ()
+  (interactive)
+  (let ((read-lyrics-getters (list #'read-lyrics-get-interactive)))
+    (read-lyrics)))
 
 (defun read-lyrics-kill-buffer ()
   "Close lyrics buffer"

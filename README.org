@@ -1,13 +1,12 @@
 #+TITLE: read-lyrics.el
 #+AUTHOR: Abhinav Tushar
 
-Lyrics reader for Emacs. Checks following players for /now-playing/ in the given
-priority order.
+Lyrics reader for Emacs. Works by querying a list of now-playing functions
+(~read-lyrics-getters~) which are supposed to return a ~cons~ cell of ~artist~ and
+~title~.
 
-1. [[https://github.com/leipsma/mpm-play][mpm-play]] (via [[https://github.com/leipsma/bbq][bbq]])
-2. [[https://www.musicpd.org/][MPD]] (needs ~mpc~ executable to be on path)
-
-For adding your own /now-playing/ source, use
+By default, there is an interactive function added in the list. For adding your
+own /now-playing/ source, do something like the following:
 
 #+BEGIN_SRC emacs-lisp
 (defun my-now-playing ()
@@ -18,3 +17,6 @@ or nil if no song is getting played"
 ;; Add to highest priority (or fiddle around with read-lyrics-getters list)
 (add-to-list 'read-lyrics-getters #'my-now-playing)
 #+END_SRC
+
+Call ~read-lyrics~ for using the now-playing functions in sequence. For forced
+manual input, use ~read-lyrics-interactive~.
