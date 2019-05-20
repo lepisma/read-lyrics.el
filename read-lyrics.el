@@ -4,7 +4,7 @@
 
 ;; Author: Abhinav Tushar <abhinav.tushar.vs@gmail.com>
 ;; Version: 3.1.5
-;; Package-Requires ((levenshtein) (enlive "0.0.1") (dash "2.13.0") (dash-functional "2.13.0") (f "0.19.0") (s "1.11.0) (spotify "0.3.3"))
+;; Package-Requires ((levenshtein) (enlive "0.0.1") (dash "2.13.0") (dash-functional "2.13.0") (f "0.19.0") (s "1.11.0))
 ;; Keywords: lyrics
 ;; URL: https://github.com/lepisma/read-lyrics.el
 
@@ -23,7 +23,6 @@
 (require 'levenshtein)
 (require 'org)
 (require 's)
-(require 'spotify)
 (require 'url-util)
 
 (defconst read-lyrics-search-url "http://search.azlyrics.com/search.php?q=")
@@ -141,16 +140,6 @@
     (if (consp res)
         (cons (cdr (assoc 'artist res))
               (cdr (assoc 'title res))))))
-
-(defun read-lyrics-get-spotify ()
-  "Return artist, track pair or nil from spotify."
-  (let ((sp-out (spotify-current)))
-    (if sp-out
-        (let ((splits (s-split " / " sp-out)))
-          (cons
-           (first splits)
-           (second (s-split-up-to ": " (third splits) 1 t))))
-      nil)))
 
 (defun read-lyrics-get-mpd ()
   "Return artist, track pair or nil from mpd"
